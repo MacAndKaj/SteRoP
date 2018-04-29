@@ -1,0 +1,9 @@
+\select@language {polish}
+\contentsline {section}{\numberline {1}Opis projektu i za\IeC {\l }o\IeC {\.z}enia projektowe}{2}{section.1}
+\contentsline {subsection}{\numberline {1.1}Projekt nadajnika wykorzystuj\IeC {\k a}cego akcelerometr do sterowania pojazdem ko\IeC {\l }owym}{2}{subsection.1.1}
+\contentsline {subsection}{\numberline {1.2}Projekt odbiornika i pojazdu ko\IeC {\l }owego}{2}{subsection.1.2}
+\contentsline {subsection}{\numberline {1.3}Funkcjonalno\IeC {\'s}ci dodatkowe}{2}{subsection.1.3}
+\contentsline {section}{\numberline {2}Organizacja pracy}{3}{section.2}
+\contentsline {subsection}{\numberline {2.1}Harmonogram zada\IeC {\'n}}{3}{subsection.2.1}
+\contentsline {subsection}{\numberline {2.2}Podzia\IeC {\l } pracy}{4}{subsection.2.2}
+\contentsline {subsection}{\numberline {2.3}Diagram Gantta}{5}{subsection.2.3}
