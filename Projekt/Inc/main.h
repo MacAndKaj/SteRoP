@@ -56,14 +56,14 @@
 #define LD_R_GPIO_Port GPIOB
 #define LD_G_Pin GPIO_PIN_8
 #define LD_G_GPIO_Port GPIOE
-#define USART_TX_Pin GPIO_PIN_9
-#define USART_TX_GPIO_Port GPIOA
-#define USART_RX_Pin GPIO_PIN_10
-#define USART_RX_GPIO_Port GPIOA
 #define ACC_SCK_Pin GPIO_PIN_1
 #define ACC_SCK_GPIO_Port GPIOD
 #define ACC_MOSI_Pin GPIO_PIN_4
 #define ACC_MOSI_GPIO_Port GPIOD
+#define BLUETOOTH_TX_Pin GPIO_PIN_6
+#define BLUETOOTH_TX_GPIO_Port GPIOB
+#define BLUETOOTH_RX_Pin GPIO_PIN_7
+#define BLUETOOTH_RX_GPIO_Port GPIOB
 #define ACC_CS_Pin GPIO_PIN_0
 #define ACC_CS_GPIO_Port GPIOE
 

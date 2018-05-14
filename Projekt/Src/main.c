@@ -45,13 +45,18 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+struct ACC_Data{
+	float XAxis;
+	float YAxis;
+	float ZAxis;
+};
 
 /* USER CODE END PV */
 
@@ -60,6 +65,27 @@ void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+int _write(int file,char *ptr,int len){
+	if(HAL_UART_Transmit(&huart2,ptr,len,50) == HAL_OK)	return len;
+	else return 0;
+}
+
+void ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg, ACC_Data *data){
+	uint8_t buf[2];
+	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+
+
+
+	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+}
+
+void ACC_Write(SPI_HandleTypeDef *hspi,uint8_t *data,uint16_t len){
+	//Selecting slave
+	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+	HAL_SPI_Transmit(hspi,data,len,50);
+	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+}
+
 
 /* USER CODE END PFP */
 
@@ -97,8 +123,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_USART1_UART_Init();
   MX_SPI2_Init();
+  MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -109,7 +136,7 @@ int main(void)
   {
 
   /* USER CODE END WHILE */
-
+	  HAL_Delay(1000);
   /* USER CODE BEGIN 3 */
 
   }
@@ -167,8 +194,9 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART2;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
