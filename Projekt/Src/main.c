@@ -46,6 +46,7 @@
 
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -56,7 +57,10 @@ struct ACC_Data{
 	float XAxis;
 	float YAxis;
 	float ZAxis;
-};
+}Axis_Data;
+int16_t Roll;
+int16_t Pitch;
+int i=2;
 
 /* USER CODE END PV */
 
@@ -65,25 +69,43 @@ void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+float square(float arg){
+	return (arg)*(arg);
+}
+
 int _write(int file,char *ptr,int len){
 	if(HAL_UART_Transmit(&huart2,ptr,len,50) == HAL_OK)	return len;
 	else return 0;
 }
 
-void ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg, ACC_Data *data){
-	uint8_t buf[2];
+
+void ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg,struct ACC_Data *data,int ind){
+	uint8_t rxBuffer;
 	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
-
-
-
+	HAL_SPI_Transmit(&hspi,reg,1,50);
+	HAL_SPI_Receive(&hspi,&rxBuffer,1,50);
 	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+	if(ind==0){
+		data->XAxis = (float)rxBuffer;
+	}
+	else if(ind==1){
+		data->YAxis = (float)rxBuffer;
+	}
+	else if(ind==2){
+		data->ZAxis = (float)rxBuffer;
+	}
+
 }
 
-void ACC_Write(SPI_HandleTypeDef *hspi,uint8_t *data,uint16_t len){
-	//Selecting slave
-	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
-	HAL_SPI_Transmit(hspi,data,len,50);
-	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+
+void Convert(struct ACC_Data* ptrData,int16_t* ptrRoll,int16_t* ptrPitch){
+	float rollAngle = atanf(ptrData->XAxis/(sqrt(square(ptrData->YAxis)+square(ptrData->ZAxis))))*180.0/ M_PI;
+	float pitchAngle = atanf(ptrData->YAxis/(sqrt(square(ptrData->XAxis)+square(ptrData->ZAxis))))*180.0/ M_PI;
+
+	*ptrRoll = (int16_t) rollAngle;
+	*ptrPitch = (int16_t) pitchAngle;
 }
 
 
@@ -123,10 +145,18 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+  //SPI Accelerometer in 3-wire SPI mode
+  //Config CTRL_REG3_M and CTRL_REG4_A to 1 to use 3-wire mode
+  uint8_t rxBuffer[2]={0x23,0b00100001}; //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+  HAL_SPI_Transmit(&hspi2,rxBuffer,2,50);
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+
 
   /* USER CODE END 2 */
 
@@ -135,8 +165,21 @@ int main(void)
   while (1)
   {
 
+	  //1. Reading data
+	  uint8_t RegisterXYZ[3] = {0x29,0x2B,0x2D};
+	  int index;
+	  for(index = 0;index < 3;++index){
+		  ACC_Read(&hspi2,&RegisterXYZ[index],&Axis_Data,index);
+	  }
+	  //2.Converting to Roll and Pitch Angle
+	  Convert(&Axis_Data,&Roll,&Pitch);
+	  //3. Sending
+//	  printf("Roll: %d Pitch: %d\r\n\r\n",Roll,Pitch);
+//
+	  HAL_Delay(10);
+
   /* USER CODE END WHILE */
-	  HAL_Delay(1000);
+
   /* USER CODE BEGIN 3 */
 
   }
@@ -241,6 +284,7 @@ void _Error_Handler(char *file, int line)
   /* User can add his own implementation to report the HAL error return state */
   while(1)
   {
+
   }
   /* USER CODE END Error_Handler_Debug */
 }
