@@ -152,18 +152,19 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //SPI Accelerometer in 3-wire SPI mode
   //Config CTRL_REG3_M and CTRL_REG4_A to 1 to use 3-wire mode
-  uint8_t tx=0xA3; //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
+  uint8_t tx[2]={0x20,0x27}; //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
 
-  HAL_SPI_Transmit_DMA(&hspi2,&tx,1);
-  tx=0x21;
-  HAL_SPI_Transmit_DMA(&hspi2,&tx,1);
+  HAL_SPI_Transmit_DMA(&hspi2,tx,2);
+  tx[0]=0x23;
+  tx[1]=0x21;
+  HAL_SPI_Transmit_DMA(&hspi2,tx,2);
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
-  tx = 0x0F;
+  uint8_t txbuf = 0x0F;
   uint8_t buf=0;
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
-  HAL_SPI_Transmit_DMA(&hspi2,&tx,1);
+  HAL_SPI_Transmit_DMA(&hspi2,&txbuf,1);
   HAL_SPI_Receive_DMA(&hspi2,&buf,1);
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
@@ -185,7 +186,7 @@ int main(void)
 	  //2.Converting to Roll and Pitch Angle
 	  Convert(&Axis_Data,&Roll,&Pitch);
 	  //3. Sending
-//	  printf("Roll: %d Pitch: %d\r\n\r\n",Roll,Pitch);
+	  printf("Roll: %d Pitch: %d\r\n\r\n",Roll,Pitch);
 //
 	  HAL_Delay(10);
 
