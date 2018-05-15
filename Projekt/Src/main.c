@@ -53,6 +53,21 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+
+#define CTRL_REG1_A 0x20
+#define VAL_CTRL_REG1_A 0b00100111 	//50Hz
+
+#define CTRL_REG4_A 0x23
+#define VAL_CTRL_REG4_A 0b00100011
+
+#define OUT_X_L_A 0x28
+#define OUT_X_H_A 0x29
+#define OUT_Y_L_A 0x2A
+#define OUT_Y_H_A 0x2B
+#define OUT_Z_L_A 0x2C
+#define OUT_Z_H_A 0x2D
+
+
 struct ACC_Data{
 	float XAxis;
 	float YAxis;
@@ -60,6 +75,8 @@ struct ACC_Data{
 }Axis_Data;
 int16_t Roll=0;
 int16_t Pitch=0;
+
+
 
 
 /* USER CODE END PV */
@@ -79,21 +96,48 @@ int _write(int file,char *ptr,int len){
 }
 
 
-HAL_StatusTypeDef ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg,struct ACC_Data *data,int ind){
-	uint8_t rxBuffer=0;
-	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
-	HAL_SPI_Transmit_DMA(hspi,reg,1);
-	HAL_StatusTypeDef ret = HAL_SPI_Receive_DMA(hspi,&rxBuffer,1);
-	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+HAL_StatusTypeDef ACC_Read(SPI_HandleTypeDef *hspi,struct ACC_Data *data,int ind){
+	uint8_t rxBuffer,rxBuffer2;
+	HAL_StatusTypeDef ret=HAL_OK;
 
 	if(ind==0){
-		data->XAxis = (float)rxBuffer;
+
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+		HAL_SPI_Transmit_DMA(hspi,OUT_X_H_A,1);
+		ret=HAL_SPI_Receive_DMA(hspi,&rxBuffer,1);
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+		HAL_SPI_Transmit_DMA(hspi,OUT_X_L_A,1);
+		ret=HAL_SPI_Receive_DMA(hspi,&rxBuffer2,1);
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+		data->XAxis = rxBuffer<<8 | rxBuffer2;
 	}
 	else if(ind==1){
-		data->YAxis = (float)rxBuffer;
+
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+		HAL_SPI_Transmit_DMA(hspi,OUT_Y_H_A,1);
+		ret=HAL_SPI_Receive_DMA(hspi,&rxBuffer,1);
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+		HAL_SPI_Transmit_DMA(hspi,OUT_Y_L_A,1);
+		ret=HAL_SPI_Receive_DMA(hspi,&rxBuffer2,1);
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+		data->YAxis = rxBuffer<<8 | rxBuffer2;
 	}
 	else if(ind==2){
-		data->ZAxis = (float)rxBuffer;
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+		HAL_SPI_Transmit_DMA(hspi,OUT_Z_H_A,1);
+		ret=HAL_SPI_Receive_DMA(hspi,&rxBuffer,1);
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+		HAL_SPI_Transmit_DMA(hspi,OUT_Z_L_A,1);
+		ret=HAL_SPI_Receive_DMA(hspi,&rxBuffer2,1);
+		HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+
+		data->ZAxis = rxBuffer<<8 | rxBuffer2;
 	}
 
 	return ret;
@@ -149,16 +193,22 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_SPI2_Init();
+
   /* USER CODE BEGIN 2 */
   //SPI Accelerometer in 3-wire SPI mode
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
+  HAL_Delay(10);
   //Config CTRL_REG3_M and CTRL_REG4_A to 1 to use 3-wire mode
-  uint8_t tx[2]={0x20,0x27}; //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
+   //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+  HAL_SPI_Transmit_DMA(&hspi2,CTRL_REG4_A,1);
+  HAL_SPI_Transmit_DMA(&hspi2,VAL_CTRL_REG4_A,1);
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
-  HAL_SPI_Transmit_DMA(&hspi2,tx,2);
-  tx[0]=0x23;
-  tx[1]=0x21;
-  HAL_SPI_Transmit_DMA(&hspi2,tx,2);
+  HAL_Delay(10);
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+  HAL_SPI_Transmit_DMA(&hspi2,CTRL_REG1_A,1);
+  HAL_SPI_Transmit_DMA(&hspi2,VAL_CTRL_REG1_A,1);
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
   uint8_t txbuf = 0x0F;
@@ -177,10 +227,10 @@ int main(void)
   {
 
 	  //1. Reading data
-	  uint8_t RegisterXYZ[3] = { 0x29,0x2B,0x2D};
+
 	  int index;
 	  for(index = 0;index < 3;++index){
-		  if(ACC_Read(&hspi2,&RegisterXYZ[index],&Axis_Data,index)==HAL_OK) printf("%d ok\r\n",index);
+		  if(ACC_Read(&hspi2,&Axis_Data,index)==HAL_OK) printf("%d ok\r\n",index);
 		  else printf("%d nie ok\r\n",index);
 	  }
 	  //2.Converting to Roll and Pitch Angle
