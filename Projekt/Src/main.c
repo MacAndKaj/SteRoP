@@ -58,9 +58,9 @@ struct ACC_Data{
 	float YAxis;
 	float ZAxis;
 }Axis_Data;
-int16_t Roll;
-int16_t Pitch;
-int i=2;
+int16_t Roll=0;
+int16_t Pitch=0;
+
 
 /* USER CODE END PV */
 
@@ -79,11 +79,11 @@ int _write(int file,char *ptr,int len){
 }
 
 
-void ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg,struct ACC_Data *data,int ind){
-	uint8_t rxBuffer;
+HAL_StatusTypeDef ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg,struct ACC_Data *data,int ind){
+	uint8_t rxBuffer=0;
 	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi,reg,1,50);
-	HAL_SPI_Receive(&hspi,&rxBuffer,1,50);
+	HAL_SPI_Transmit_DMA(hspi,reg,1);
+	HAL_StatusTypeDef ret = HAL_SPI_Receive_DMA(hspi,&rxBuffer,1);
 	HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
 	if(ind==0){
@@ -96,6 +96,7 @@ void ACC_Read(SPI_HandleTypeDef *hspi,uint8_t *reg,struct ACC_Data *data,int ind
 		data->ZAxis = (float)rxBuffer;
 	}
 
+	return ret;
 }
 
 
@@ -151,11 +152,20 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //SPI Accelerometer in 3-wire SPI mode
   //Config CTRL_REG3_M and CTRL_REG4_A to 1 to use 3-wire mode
-  uint8_t rxBuffer[2]={0x23,0b00100001}; //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
+  uint8_t tx=0xA3; //CTRL_REG4_A = 00000001 to 3-wire acc mode and 00100000 for +/-4g
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
-  HAL_SPI_Transmit(&hspi2,rxBuffer,2,50);
+
+  HAL_SPI_Transmit_DMA(&hspi2,&tx,1);
+  tx=0x21;
+  HAL_SPI_Transmit_DMA(&hspi2,&tx,1);
   HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
+  tx = 0x0F;
+  uint8_t buf=0;
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_RESET);
+  HAL_SPI_Transmit_DMA(&hspi2,&tx,1);
+  HAL_SPI_Receive_DMA(&hspi2,&buf,1);
+  HAL_GPIO_WritePin(ACC_CS_GPIO_Port,ACC_CS_Pin,GPIO_PIN_SET);
 
 
   /* USER CODE END 2 */
@@ -166,10 +176,11 @@ int main(void)
   {
 
 	  //1. Reading data
-	  uint8_t RegisterXYZ[3] = {0x29,0x2B,0x2D};
+	  uint8_t RegisterXYZ[3] = { 0x29,0x2B,0x2D};
 	  int index;
 	  for(index = 0;index < 3;++index){
-		  ACC_Read(&hspi2,&RegisterXYZ[index],&Axis_Data,index);
+		  if(ACC_Read(&hspi2,&RegisterXYZ[index],&Axis_Data,index)==HAL_OK) printf("%d ok\r\n",index);
+		  else printf("%d nie ok\r\n",index);
 	  }
 	  //2.Converting to Roll and Pitch Angle
 	  Convert(&Axis_Data,&Roll,&Pitch);
