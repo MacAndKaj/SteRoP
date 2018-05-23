@@ -1,16 +1,13 @@
 /**
   ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
+  * @file    tsensor.h
+  * @author  MCD Application Team
+  * @brief   This header file contains the functions prototypes for the
+  *          Temperature Sensor driver. 
   ******************************************************************************
-  ** This notice applies to any and all portions of this file
-  * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether 
-  * inserted by the user or by software development tools
-  * are owned by their respective copyright owners.
+  * @attention
   *
-  * COPYRIGHT(c) 2018 STMicroelectronics
+  * <h2><center>&copy; COPYRIGHT(c) 2017 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -38,58 +35,65 @@
   */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H__
-#define __MAIN_H__
-
-/* Includes ------------------------------------------------------------------*/
-
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private define ------------------------------------------------------------*/
-
-#define MAG_CS_Pin GPIO_PIN_0
-#define MAG_CS_GPIO_Port GPIOC
-#define JOY_CENTER_Pin GPIO_PIN_0
-#define JOY_CENTER_GPIO_Port GPIOA
-#define JOY_CENTER_EXTI_IRQn EXTI0_IRQn
-#define LD_R_Pin GPIO_PIN_2
-#define LD_R_GPIO_Port GPIOB
-#define LD_G_Pin GPIO_PIN_8
-#define LD_G_GPIO_Port GPIOE
-#define ACC_SCK_Pin GPIO_PIN_1
-#define ACC_SCK_GPIO_Port GPIOD
-#define ACC_MOSI_Pin GPIO_PIN_4
-#define ACC_MOSI_GPIO_Port GPIOD
-#define BLUETOOTH_TX_Pin GPIO_PIN_6
-#define BLUETOOTH_TX_GPIO_Port GPIOB
-#define BLUETOOTH_RX_Pin GPIO_PIN_7
-#define BLUETOOTH_RX_GPIO_Port GPIOB
-#define ACC_CS_Pin GPIO_PIN_0
-#define ACC_CS_GPIO_Port GPIOE
-
-/* ########################## Assert Selection ############################## */
-/**
-  * @brief Uncomment the line below to expanse the "assert_param" macro in the 
-  *        HAL drivers code
-  */
-/* #define USE_FULL_ASSERT    1U */
-
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
+#ifndef __PSENSOR_H
+#define __PSENSOR_H
 
 #ifdef __cplusplus
  extern "C" {
 #endif
-void _Error_Handler(char *, int);
 
-#define Error_Handler() _Error_Handler(__FILE__, __LINE__)
+/* Includes ------------------------------------------------------------------*/
+#include <stdint.h>
+
+/** @addtogroup BSP
+  * @{
+  */
+
+/** @addtogroup Components
+  * @{
+  */
+    
+/** @addtogroup PSENSOR
+  * @{
+  */
+
+/** @defgroup PSENSOR_Exported_Types
+  * @{
+  */ 
+
+/** @defgroup PSENSOR_Driver_structure  Temperature Sensor Driver structure
+  * @{
+  */
+typedef struct
+{  
+  void       (*Init)(uint16_t);
+  uint8_t    (*ReadID)(uint16_t);
+  float      (*ReadPressure)(uint16_t);
+}PSENSOR_DrvTypeDef;
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __MAIN_H__ */
+#endif /* __PSENSOR_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
