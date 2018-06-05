@@ -38,46 +38,53 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32l4xx_hal.h"
-#include "dma.h"
-#include "spi.h"
+#include "stm32f1xx_hal.h"
+#include "adc.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
-#include <math.h>
-#include <stm32l476g_discovery_compass.h>
+
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-
+uint16_t MOTOR_LEFT = 0xA0;
+uint16_t MOTOR_RIGHT = 0x0A;
+uint16_t MOTOR_BACKWARD = 0x11;
+uint16_t MOTOR_FORWARD = 0xFF;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
-
-#define CTRL_REG1_A 0x20
-#define CTRL_REG4_A 0x23
-
-#define OUT_X_L_A 0x28
-#define OUT_X_H_A 0x29
-#define OUT_Y_L_A 0x2A
-#define OUT_Y_H_A 0x2B
-#define OUT_Z_L_A 0x2C
-#define OUT_Z_H_A 0x2D
-
-
-
-
-struct ACC_Data{
-	float XAxis;
-	float YAxis;
-	float ZAxis;
-}Axis_Data;
-int8_t Roll=0;
-int8_t Pitch=0;
-
-
+int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
+	if(MOTOR != MOTOR_LEFT && MOTOR != MOTOR_RIGHT ) return -1;
+	if(DIRECTION != MOTOR_BACKWARD && DIRECTION != MOTOR_FORWARD ) return -1;
+	if(SPEED > 100) return -1;
+	if(MOTOR == MOTOR_RIGHT){
+		TIM3->CCR1 = SPEED;
+		if(DIRECTION == MOTOR_FORWARD){
+			HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(MOTOR_R_FORWARD_GPIO_Port,MOTOR_R_FORWARD_Pin,GPIO_PIN_SET);
+		}
+		else{
+			HAL_GPIO_WritePin(MOTOR_R_FORWARD_GPIO_Port,MOTOR_R_FORWARD_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_SET);
+		}
+	}
+	else{
+		TIM3->CCR2 = SPEED;
+		if(DIRECTION == MOTOR_FORWARD){
+			HAL_GPIO_WritePin(MOTOR_L_BACKWARD_GPIO_Port,MOTOR_L_BACKWARD_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(MOTOR_L_FORWARD_GPIO_Port,MOTOR_L_FORWARD_Pin,GPIO_PIN_SET);
+		}
+		else{
+			HAL_GPIO_WritePin(MOTOR_L_FORWARD_GPIO_Port,MOTOR_L_FORWARD_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(MOTOR_L_BACKWARD_GPIO_Port,MOTOR_L_BACKWARD_Pin,GPIO_PIN_SET);
+		}
+	}
+	return 0;
+}
 
 
 /* USER CODE END PV */
@@ -87,28 +94,6 @@ void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-float square(float arg){
-	return (arg)*(arg);
-}
-
-int _write(int file,char *ptr,int len){
-	if(HAL_UART_Transmit(&huart2,ptr,len,50) == HAL_OK)	return len;
-	else return 0;
-}
-
-
-
-
-
-
-void Convert(struct ACC_Data* ptrData,int8_t* ptrRoll,int8_t* ptrPitch){
-	float rollAngle = atanf(ptrData->XAxis/(sqrt(square(ptrData->YAxis)+square(ptrData->ZAxis))))*180.0/ M_PI;
-	float pitchAngle = atanf(ptrData->YAxis/(sqrt(square(ptrData->XAxis)+square(ptrData->ZAxis))))*180.0/ M_PI;
-
-	*ptrRoll = (int8_t) rollAngle;
-	*ptrPitch = (int8_t) pitchAngle;
-}
-
 
 /* USER CODE END PFP */
 
@@ -145,35 +130,42 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
-  MX_SPI2_Init();
+  MX_ADC1_Init();
+  MX_USART3_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  COMPASS_StatusTypeDef stat = BSP_COMPASS_Init();
+  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
 
-  int16_t data[3];
-  uint8_t sendData[2];
+  uint16_t speedleft = 0;
+  uint16_t speedright = 0;
+
+  uint16_t dir=MOTOR_FORWARD;
+  int stop=0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  Change_Speed(MOTOR_LEFT,dir,speedleft);
+	  Change_Speed(MOTOR_RIGHT,dir,speedright);
+	  if(speedleft < 30 && speedright <30 && stop == 0){
+		  speedleft++;
+		  speedright++;
+	  }
+	  else if(speedleft == 30 && speedright == 30 && stop == 0){
+		  stop=1;
+	  }
+	  else if(speedleft>0 && speedright>0 && stop ==1){
+		  speedleft--;
+		  speedright--;
+	  }
+	  else if(speedleft == 0 && speedright == 0 && stop == 1){
+	  	  stop=0;
+	  }
 
-	  //1. Reading data
-	  BSP_COMPASS_AccGetXYZ(&data);
-	  Axis_Data.XAxis=(float)data[0];
-	  Axis_Data.YAxis=(float)data[1];
-	  Axis_Data.ZAxis=(float)data[2];
-	  //2.Converting to Roll and Pitch Angle
-	  Convert(&Axis_Data,&Roll,&Pitch);
-	  //3. Sending
-	  sendData[0]=Roll;
-	  sendData[1]=Pitch;
-//	  HAL_UART_Transmit(&huart1,&sendData,2,50);
-	  HAL_Delay(100);
-
+	  HAL_Delay(200);
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -194,26 +186,12 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-    /**Configure LSE Drive Capability 
-    */
-  HAL_PWR_EnableBkUpAccess();
-
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
-
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 40;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -223,27 +201,19 @@ void SystemClock_Config(void)
     */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART2;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV2;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-    /**Configure the main internal regulator output voltage 
-    */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -255,10 +225,6 @@ void SystemClock_Config(void)
     /**Configure the Systick 
     */
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-
-    /**Enable MSI Auto calibration 
-    */
-  HAL_RCCEx_EnableMSIPLLMode();
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
@@ -280,7 +246,6 @@ void _Error_Handler(char *file, int line)
   /* User can add his own implementation to report the HAL error return state */
   while(1)
   {
-
   }
   /* USER CODE END Error_Handler_Debug */
 }
