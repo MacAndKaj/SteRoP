@@ -77,6 +77,15 @@
 #define MOTOR_EN_RIGHT_GPIO_Port GPIOC
 #define MOTOR_EN_LEFT_Pin GPIO_PIN_7
 #define MOTOR_EN_LEFT_GPIO_Port GPIOC
+#define echolewe_Pin GPIO_PIN_8
+#define echolewe_GPIO_Port GPIOA
+#define triglewy_Pin GPIO_PIN_9
+#define triglewy_GPIO_Port GPIOA
+#define echoprawe_Pin GPIO_PIN_10
+#define echoprawe_GPIO_Port GPIOA
+#define echoprawe_EXTI_IRQn EXTI15_10_IRQn
+#define trigprawy_Pin GPIO_PIN_11
+#define trigprawy_GPIO_Port GPIOA
 
 /* ########################## Assert Selection ############################## */
 /**

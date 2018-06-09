@@ -50,19 +50,37 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-uint16_t MOTOR_LEFT = 0xA0;
-uint16_t MOTOR_RIGHT = 0x0A;
-uint16_t MOTOR_BACKWARD = 0x11;
-uint16_t MOTOR_FORWARD = 0xFF;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+int inited=0;
+uint32_t test=0;
+int SENSOR_EXT_Flag=0;
+uint16_t timeSENSOR=0;
+uint16_t distanceL=0,distanceR=0;
+uint8_t BluetoothData;
+uint16_t speedleft = 0;
+uint16_t speedright = 0;
+
+uint16_t MOTOR_LEFT = 0xAA;
+uint16_t MOTOR_RIGHT = 0xAA;
+uint16_t MOTOR_FORWARD = 0xAA;
+uint16_t MOTOR_BACKWARD = 0xAA;
 
 int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
+	if(distanceL < 50 || distanceR<50){
+		HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MOTOR_R_FORWARD_GPIO_Port,MOTOR_R_FORWARD_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MOTOR_L_BACKWARD_GPIO_Port,MOTOR_L_BACKWARD_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MOTOR_L_FORWARD_GPIO_Port,MOTOR_L_FORWARD_Pin,GPIO_PIN_RESET);
+		speedleft = 0;
+		speedright = 0;
+	}
 	if(MOTOR != MOTOR_LEFT && MOTOR != MOTOR_RIGHT ) return -1;
 	if(DIRECTION != MOTOR_BACKWARD && DIRECTION != MOTOR_FORWARD ) return -1;
 	if(SPEED > 100) return -1;
 	if(MOTOR == MOTOR_RIGHT){
-		TIM3->CCR1 = SPEED;
+		TIM3->CCR1 = speedright;
 		if(DIRECTION == MOTOR_FORWARD){
 			HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(MOTOR_R_FORWARD_GPIO_Port,MOTOR_R_FORWARD_Pin,GPIO_PIN_SET);
@@ -73,7 +91,7 @@ int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
 		}
 	}
 	else{
-		TIM3->CCR2 = SPEED;
+		TIM3->CCR2 = speedright;
 		if(DIRECTION == MOTOR_FORWARD){
 			HAL_GPIO_WritePin(MOTOR_L_BACKWARD_GPIO_Port,MOTOR_L_BACKWARD_Pin,GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(MOTOR_L_FORWARD_GPIO_Port,MOTOR_L_FORWARD_Pin,GPIO_PIN_SET);
@@ -87,10 +105,96 @@ int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
 }
 
 
+uint32_t getUs(void) {
+
+	uint32_t usTicks = HAL_RCC_GetSysClockFreq() / 1000000;
+	register uint32_t ms, cycle_cnt;
+	do {
+		ms = HAL_GetTick();
+		cycle_cnt = SysTick->VAL;
+	} while (ms != HAL_GetTick());
+	return (ms * 1000) + (usTicks * 1000 - cycle_cnt) / usTicks;
+}
+
+void delayUs(uint16_t micros) {
+	uint32_t start = getUs();
+	while (getUs() - start < (uint32_t) micros) {
+		asm("nop");
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim == &htim2){
+		timeSENSOR=65000;
+		HAL_TIM_Base_Stop(&htim2);
+		TIM2->CNT=0;
+		SENSOR_EXT_Flag=4;
+
+	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(!inited)return;
+	if(GPIO_Pin==echoprawe_Pin){
+		if(HAL_GPIO_ReadPin(echoprawe_GPIO_Port,echoprawe_Pin)==GPIO_PIN_SET){
+			HAL_TIM_Base_Start(&htim2);
+			SENSOR_EXT_Flag=3;
+		}
+		else{
+			timeSENSOR=TIM2->CNT;
+			HAL_TIM_Base_Stop(&htim2);
+			TIM2->CNT=0;
+			SENSOR_EXT_Flag=4;
+		}
+	}
+	else if(GPIO_Pin == echolewe_Pin){
+		if(HAL_GPIO_ReadPin(echolewe_GPIO_Port,echolewe_Pin)==GPIO_PIN_SET){
+			HAL_TIM_Base_Start(&htim2);
+			SENSOR_EXT_Flag=3;
+		}
+		else{
+			timeSENSOR=TIM2->CNT;
+			HAL_TIM_Base_Stop(&htim2);
+			TIM2->CNT=0;
+			SENSOR_EXT_Flag=4;
+		}
+	}
+}
+uint32_t Measure_Right(){
+  	HAL_GPIO_WritePin(trigprawy_GPIO_Port,trigprawy_Pin,GPIO_PIN_SET);
+	delayUs(10);
+	HAL_GPIO_WritePin(trigprawy_GPIO_Port,trigprawy_Pin,GPIO_PIN_RESET);
+
+	while(SENSOR_EXT_Flag!=4);
+	distanceR=timeSENSOR/58;
+	return distanceR;
+}
+uint32_t Measure_Left(){
+  	HAL_GPIO_WritePin(triglewy_GPIO_Port,triglewy_Pin,GPIO_PIN_SET);
+	delayUs(10);
+	HAL_GPIO_WritePin(triglewy_GPIO_Port,triglewy_Pin,GPIO_PIN_RESET);
+
+	while(SENSOR_EXT_Flag!=4);
+	distanceL=timeSENSOR/58;
+	return distanceL;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+
+  if(huart==&huart3){
+
+	  HAL_UART_Receive_IT(&huart3,&BluetoothData,1);
+  }
+}
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_NVIC_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -133,39 +237,43 @@ int main(void)
   MX_ADC1_Init();
   MX_USART3_UART_Init();
   MX_TIM3_Init();
+  MX_TIM1_Init();
+  MX_TIM2_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
+  inited=1;
+//  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
+//  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
 
-  uint16_t speedleft = 0;
-  uint16_t speedright = 0;
+  HAL_UART_Receive_IT(&huart3,&BluetoothData,1);
 
-  uint16_t dir=MOTOR_FORWARD;
-  int stop=0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Change_Speed(MOTOR_LEFT,dir,speedleft);
-	  Change_Speed(MOTOR_RIGHT,dir,speedright);
-	  if(speedleft < 30 && speedright <30 && stop == 0){
-		  speedleft++;
-		  speedright++;
+//	  Measure_Left();
+//	  Measure_Right();
+	  if(BluetoothData == 0x61){
+		  HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_SET);
+		  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(led3_GPIO_Port,led3_Pin,GPIO_PIN_RESET);
 	  }
-	  else if(speedleft == 30 && speedright == 30 && stop == 0){
-		  stop=1;
-	  }
-	  else if(speedleft>0 && speedright>0 && stop ==1){
-		  speedleft--;
-		  speedright--;
-	  }
-	  else if(speedleft == 0 && speedright == 0 && stop == 1){
-	  	  stop=0;
-	  }
+	  else if(BluetoothData == 0x62){
+		  HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_SET);
+		  HAL_GPIO_WritePin(led3_GPIO_Port,led3_Pin,GPIO_PIN_RESET);
 
-	  HAL_Delay(200);
+	  }
+	  else if(BluetoothData == 0x63){
+	  		  HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_RESET);
+	  		  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_RESET);
+	  		  HAL_GPIO_WritePin(led3_GPIO_Port,led3_Pin,GPIO_PIN_SET);
+
+	  	}
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -228,6 +336,17 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/**
+  * @brief NVIC Configuration.
+  * @retval None
+  */
+static void MX_NVIC_Init(void)
+{
+  /* TIM2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(TIM2_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

@@ -67,7 +67,7 @@
 #define OUT_Z_H_A 0x2D
 
 
-
+uint8_t BluetoothData;
 
 struct ACC_Data{
 	float XAxis;
@@ -77,7 +77,7 @@ struct ACC_Data{
 int8_t Roll=0;
 int8_t Pitch=0;
 
-
+int start=0;
 
 
 /* USER CODE END PV */
@@ -91,14 +91,15 @@ float square(float arg){
 	return (arg)*(arg);
 }
 
-int _write(int file,char *ptr,int len){
-	if(HAL_UART_Transmit(&huart2,ptr,len,50) == HAL_OK)	return len;
-	else return 0;
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin==JOY_CENTER_Pin){
+	  if(start==0)start=1;
+	  else start=0;
+  }
 }
-
-
-
-
 
 
 void Convert(struct ACC_Data* ptrData,int8_t* ptrRoll,int8_t* ptrPitch){
@@ -154,6 +155,7 @@ int main(void)
 
   int16_t data[3];
   uint8_t sendData[2];
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -171,8 +173,9 @@ int main(void)
 	  //3. Sending
 	  sendData[0]=Roll;
 	  sendData[1]=Pitch;
-//	  HAL_UART_Transmit(&huart1,&sendData,2,50);
-	  HAL_Delay(100);
+
+	  if(start==1)HAL_UART_Transmit(&huart1,&sendData,2,50);
+	  HAL_Delay(50);
 
   /* USER CODE END WHILE */
 
