@@ -57,16 +57,19 @@ int inited=0;
 uint32_t test=0;
 int SENSOR_EXT_Flag=0;
 uint16_t timeSENSOR=0;
-uint16_t distanceL=0,distanceR=0;
-uint8_t BluetoothData;
+uint16_t distanceL=9999,distanceR=9999;
+int8_t BluetoothData[2]={0,0};	//Roll,Pitch
 uint16_t speedleft = 0;
 uint16_t speedright = 0;
+uint16_t dirleft=0;
+uint16_t dirrightt=0;
+
 
 uint16_t MOTOR_LEFT = 0xAA;
-uint16_t MOTOR_RIGHT = 0xAA;
+uint16_t MOTOR_RIGHT = 0xBB;
 uint16_t MOTOR_FORWARD = 0xAA;
-uint16_t MOTOR_BACKWARD = 0xAA;
-
+uint16_t MOTOR_BACKWARD = 0xBB;
+uint16_t MOTOR_STOP = 0xCC;
 int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
 	if(distanceL < 50 || distanceR<50){
 		HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_RESET);
@@ -75,10 +78,20 @@ int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
 		HAL_GPIO_WritePin(MOTOR_L_FORWARD_GPIO_Port,MOTOR_L_FORWARD_Pin,GPIO_PIN_RESET);
 		speedleft = 0;
 		speedright = 0;
+		return -1;
+	}
+	if(DIRECTION == MOTOR_STOP){
+		HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MOTOR_R_FORWARD_GPIO_Port,MOTOR_R_FORWARD_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MOTOR_L_BACKWARD_GPIO_Port,MOTOR_L_BACKWARD_Pin,GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MOTOR_L_FORWARD_GPIO_Port,MOTOR_L_FORWARD_Pin,GPIO_PIN_RESET);
+		speedleft = 0;
+		speedright = 0;
+		return 0;
 	}
 	if(MOTOR != MOTOR_LEFT && MOTOR != MOTOR_RIGHT ) return -1;
 	if(DIRECTION != MOTOR_BACKWARD && DIRECTION != MOTOR_FORWARD ) return -1;
-	if(SPEED > 100) return -1;
+	if(SPEED > 100 || SPEED <0) return -1;
 	if(MOTOR == MOTOR_RIGHT){
 		TIM3->CCR1 = speedright;
 		if(DIRECTION == MOTOR_FORWARD){
@@ -183,11 +196,14 @@ uint32_t Measure_Left(){
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-
+	HAL_GPIO_TogglePin(led1_GPIO_Port,led1_Pin);
   if(huart==&huart3){
-
-	  HAL_UART_Receive_IT(&huart3,&BluetoothData,1);
+	  HAL_UART_Receive_IT(&huart3,&BluetoothData,2);
   }
+}
+
+void AnglesToSpeed(){
+
 }
 
 /* USER CODE END PV */
@@ -244,11 +260,12 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   inited=1;
-//  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
-//  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
 
-  HAL_UART_Receive_IT(&huart3,&BluetoothData,1);
-
+  HAL_UART_Receive_IT(&huart3,&BluetoothData,2);
+  speedleft=20;
+  speedright=20;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -257,23 +274,32 @@ int main(void)
   {
 //	  Measure_Left();
 //	  Measure_Right();
-	  if(BluetoothData == 0x61){
-		  HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_SET);
-		  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_RESET);
-		  HAL_GPIO_WritePin(led3_GPIO_Port,led3_Pin,GPIO_PIN_RESET);
+//	  AnglesToSpeed();
+	  speedleft=20;
+	  speedright=20;
+	  if(BluetoothData[0] < -20 ){
+		  dirleft = MOTOR_BACKWARD;
+		  dirrightt = MOTOR_FORWARD;
 	  }
-	  else if(BluetoothData == 0x62){
-		  HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_RESET);
-		  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_SET);
-		  HAL_GPIO_WritePin(led3_GPIO_Port,led3_Pin,GPIO_PIN_RESET);
-
+	  else if(BluetoothData[0] > 20 ){
+	  		  dirleft = MOTOR_FORWARD;
+	  		  dirrightt = MOTOR_BACKWARD;
 	  }
-	  else if(BluetoothData == 0x63){
-	  		  HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_RESET);
-	  		  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_RESET);
-	  		  HAL_GPIO_WritePin(led3_GPIO_Port,led3_Pin,GPIO_PIN_SET);
+	  else if(BluetoothData[1] > 20 ){
+	  		  dirleft = MOTOR_FORWARD;
+	  		  dirrightt = MOTOR_FORWARD;
+	  }
+	  else if(BluetoothData[1] < -20 ){
+	  	  		  dirleft = MOTOR_BACKWARD;
+	  	  		  dirrightt = MOTOR_BACKWARD;
+	  	  }
+	  else{
+		  speedleft=0;
+		  speedright=0;
+	  }
+	  Change_Speed(MOTOR_LEFT,dirleft,speedleft);
+	  Change_Speed(MOTOR_RIGHT,dirrightt,speedright);
 
-	  	}
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */

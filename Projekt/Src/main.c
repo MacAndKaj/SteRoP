@@ -95,9 +95,17 @@ float square(float arg){
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	uint8_t breaking[2]={0,0};
   if(GPIO_Pin==JOY_CENTER_Pin){
-	  if(start==0)start=1;
-	  else start=0;
+	  if(start==0){
+		  HAL_GPIO_WritePin(LD_R_GPIO_Port,LD_R_Pin,GPIO_PIN_SET);
+		  start=1;
+	  }
+	  else {
+		  HAL_GPIO_WritePin(LD_R_GPIO_Port,LD_R_Pin,GPIO_PIN_RESET);
+		  start=0;
+		  HAL_UART_Transmit(&huart1,&breaking,2,50);
+	  }
   }
 }
 
