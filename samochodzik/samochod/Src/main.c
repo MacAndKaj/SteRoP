@@ -71,7 +71,7 @@ uint16_t MOTOR_FORWARD = 0xAA;
 uint16_t MOTOR_BACKWARD = 0xBB;
 uint16_t MOTOR_STOP = 0xCC;
 int Change_Speed(uint16_t MOTOR,uint16_t DIRECTION,uint16_t SPEED){
-	if(distanceL < 50 || distanceR<50){
+	if((distanceL < 30 || distanceR<30)&& DIRECTION == MOTOR_FORWARD){
 		HAL_GPIO_WritePin(MOTOR_R_BACKWARD_GPIO_Port,MOTOR_R_BACKWARD_Pin,GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(MOTOR_R_FORWARD_GPIO_Port,MOTOR_R_FORWARD_Pin,GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(MOTOR_L_BACKWARD_GPIO_Port,MOTOR_L_BACKWARD_Pin,GPIO_PIN_RESET);
@@ -203,7 +203,54 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 void AnglesToSpeed(){
+	if(BluetoothData[1]<15 && BluetoothData[1] >-15){
+		speedleft=0;
+		speedright=0;
+		if(BluetoothData[0] < 15 && BluetoothData[0] > -15) return;
+		else if(BluetoothData[0] > 0){
+			speedleft=BluetoothData[0];
+			speedright=BluetoothData[0];
+			dirleft=MOTOR_FORWARD;
+			dirrightt=MOTOR_BACKWARD;
+		}
+		else{
+			speedleft=-BluetoothData[0];
+			speedright=-BluetoothData[0];
+			dirleft=MOTOR_BACKWARD;
+			dirrightt=MOTOR_FORWARD;
+		}
+	}
+	else{
+		if(BluetoothData[1] < 0){
+			speedleft=-BluetoothData[1];
+			speedright=-BluetoothData[1];
+			dirleft=MOTOR_BACKWARD;
+			dirrightt=MOTOR_BACKWARD;
+			if(BluetoothData[0]>15 || BluetoothData[0]<-15){
+				if(BluetoothData[0]>0){
+					speedleft=(-BluetoothData[1] - BluetoothData[0]/5);
+				}
+				else{
+					speedright=(-BluetoothData[1] + BluetoothData[0]/5);
+				}
+			}
+		}
+		else{
+			speedleft=BluetoothData[1];
+			speedright=BluetoothData[1];
+			dirleft=MOTOR_FORWARD;
+			dirrightt=MOTOR_FORWARD;
+			if(BluetoothData[0]>15 || BluetoothData[0]<-15){
+				if(BluetoothData[0]>0){
+					speedleft=(BluetoothData[1] - BluetoothData[0]/5);
+				}
+				else{
+					speedright=(BluetoothData[1] + BluetoothData[0]/5);
+				}
+			}
+		}
 
+	}
 }
 
 /* USER CODE END PV */
@@ -264,39 +311,16 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
 
   HAL_UART_Receive_IT(&huart3,&BluetoothData,2);
-  speedleft=20;
-  speedright=20;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  Measure_Left();
-//	  Measure_Right();
-//	  AnglesToSpeed();
-	  speedleft=20;
-	  speedright=20;
-	  if(BluetoothData[0] < -20 ){
-		  dirleft = MOTOR_BACKWARD;
-		  dirrightt = MOTOR_FORWARD;
-	  }
-	  else if(BluetoothData[0] > 20 ){
-	  		  dirleft = MOTOR_FORWARD;
-	  		  dirrightt = MOTOR_BACKWARD;
-	  }
-	  else if(BluetoothData[1] > 20 ){
-	  		  dirleft = MOTOR_FORWARD;
-	  		  dirrightt = MOTOR_FORWARD;
-	  }
-	  else if(BluetoothData[1] < -20 ){
-	  	  		  dirleft = MOTOR_BACKWARD;
-	  	  		  dirrightt = MOTOR_BACKWARD;
-	  	  }
-	  else{
-		  speedleft=0;
-		  speedright=0;
-	  }
+	  Measure_Left();
+	  Measure_Right();
+	  AnglesToSpeed();
+
 	  Change_Speed(MOTOR_LEFT,dirleft,speedleft);
 	  Change_Speed(MOTOR_RIGHT,dirrightt,speedright);
 
